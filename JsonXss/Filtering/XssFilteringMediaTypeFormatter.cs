@@ -10,23 +10,30 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Web.Http.Validation;
 using CsQuery;
 using Ganss.XSS;
+using Microsoft.Security.Application;
 
 namespace JsonXss.Filtering
 {
+    /// <summary>
+    /// Filters suspected XSS out of request fields
+    /// </summary>
     public class XssFilteringMediaTypeFormatter : MediaTypeFormatter
     {
         private readonly MediaTypeFormatter _innerFormatter;
+        private readonly XssStrategy _strategy;
 
-        public XssFilteringMediaTypeFormatter(MediaTypeFormatter innerFormatter) : base(innerFormatter)
+        public XssFilteringMediaTypeFormatter(MediaTypeFormatter innerFormatter, XssStrategy strategy) : base(innerFormatter)
         {
             _innerFormatter = innerFormatter;
+            _strategy = strategy;
         }
 
-        public static void Configure(HttpConfiguration config)
+        public static void Configure(HttpConfiguration config, XssStrategy strategy)
         {
-            var wrappedFormatters = config.Formatters.Select(fmt => new XssFilteringMediaTypeFormatter(fmt)).ToList();
+            var wrappedFormatters = config.Formatters.Select(fmt => new XssFilteringMediaTypeFormatter(fmt, strategy)).ToList();
             config.Formatters.Clear();
             config.Formatters.AddRange(wrappedFormatters);
         }
@@ -66,9 +73,10 @@ namespace JsonXss.Filtering
             foreach (var property in properties)
             {
                 object value = property.GetValue(obj);
-                if (property.PropertyType == typeof(string) && property.CanWrite && property.GetCustomAttribute<AllowHtmlAttribute>() == null)
+                if (property.PropertyType == typeof(string) && property.CanWrite)
                 {
-                    string newValue = Sanitize((string) value);
+                    var attribute = property.GetCustomAttribute<AllowHtmlAttribute>();
+                    string newValue = Sanitize((string) value, attribute, _strategy);
                     property.SetValue(obj, newValue);
                 }
                 else
@@ -79,9 +87,10 @@ namespace JsonXss.Filtering
             foreach (var field in fields)
             {
                 object value = field.GetValue(obj);
-                if (field.FieldType == typeof (string) && field.GetCustomAttribute<AllowHtmlAttribute>() == null)
+                if (field.FieldType == typeof (string))
                 {
-                    string newValue = Sanitize((string) value);
+                    var attribute = field.GetCustomAttribute<AllowHtmlAttribute>();
+                    string newValue = Sanitize((string) value, attribute, _strategy);
                     field.SetValue(obj, newValue);
                 }
                 else
@@ -118,10 +127,46 @@ namespace JsonXss.Filtering
             return false;
         }
 
-        private string Sanitize(string dirty)
+        private string Sanitize(string dirty, AllowHtmlAttribute attribute, XssStrategy strategy)
         {
-            var sanitizer = new HtmlSanitizer();
+            switch (strategy)
+            {
+                case XssStrategy.AspNet:
+                    throw new NotImplementedException();
+                case XssStrategy.HtmlSanitizer:
+                    return SanitizeHtmlSanitizer(dirty, attribute);
+                case XssStrategy.AntiXss:
+                    return SanitizeAntiXss(dirty, attribute);
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        private string SanitizeHtmlSanitizer(string dirty, AllowHtmlAttribute attribute)
+        {
+            var sanitizer = new HtmlSanitizer(
+                allowedTags: attribute != null ? attribute.AllowedTags : new string[0],
+                allowedSchemes: new string[0],
+                allowedAttributes: new string[0],
+                uriAttributes: new string[0],
+                allowedCssProperties: new string[0]);
             return sanitizer.Sanitize(dirty, outputFormatter: OutputFormatters.HtmlEncodingNone);
+        }
+
+        private string SanitizeAntiXss(string dirty, AllowHtmlAttribute attribute)
+        {
+            if (attribute != null) return dirty;
+
+            var sanitized = Sanitizer.GetSafeHtmlFragment(dirty);
+            if (!dirty.Equals(sanitized))
+            {
+                // Revert HTML encoded special characters
+                sanitized = sanitized.Replace("&lt;", "<");
+                sanitized = sanitized.Replace("&gt;", ">");
+                sanitized = sanitized.Replace("&amp;", "&");
+                sanitized = sanitized.Replace("&quot;", "\"");   
+            }
+            return sanitized;
         }
 
         #region Delegate to innerFormatter

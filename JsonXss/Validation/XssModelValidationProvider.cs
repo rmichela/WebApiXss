@@ -9,9 +9,9 @@ namespace JsonXss.Validation
 {
     public class XssModelValidationProvider : AssociatedValidatorProvider
     {
-        private readonly XssModelValidationStrategy _strategy;
+        private readonly XssStrategy _strategy;
 
-        public XssModelValidationProvider(XssModelValidationStrategy strategy)
+        public XssModelValidationProvider(XssStrategy strategy)
         {
             _strategy = strategy;
         }
@@ -22,18 +22,18 @@ namespace JsonXss.Validation
         protected override IEnumerable<ModelValidator> GetValidators(ModelMetadata metadata, IEnumerable<ModelValidatorProvider> validatorProviders, IEnumerable<Attribute> attributes)
         {
             // Only apply XSS validation to strings
-            if (metadata.Model is string && !attributes.Any(att => att is AllowHtmlAttribute))
+            if (metadata.Model is string)
             {
                 switch (_strategy)
                 {
-                    case XssModelValidationStrategy.AspNet:                       
-                        yield return new AspNetXssModelValidator(validatorProviders);
+                    case XssStrategy.AspNet:   
+                        if (!attributes.Any(att => att is AllowHtmlAttribute)) yield return new AspNetXssModelValidator(validatorProviders);
                         break;
-                    case XssModelValidationStrategy.AntiXss:
-                        yield return new AntiXssModelValidator(validatorProviders);
+                    case XssStrategy.AntiXss:
+                        if (!attributes.Any(att => att is AllowHtmlAttribute)) yield return new AntiXssModelValidator(validatorProviders);
                         break;
-                    case XssModelValidationStrategy.HtmlSanitizer:
-                        yield return new HtmlSanitizerModelValidator(validatorProviders);
+                    case XssStrategy.HtmlSanitizer:
+                        yield return new HtmlSanitizerModelValidator(validatorProviders, attributes.OfType<AllowHtmlAttribute>().FirstOrDefault());
                         break;
                 }
             }

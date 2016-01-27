@@ -109,13 +109,13 @@
     </Compile>
     <Compile Include="Models\JsonPayload.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Validation\AllowHtmlAttribute.cs" />
+    <Compile Include="AllowHtmlAttribute.cs" />
     <Compile Include="Validation\AntiXssModelValidator.cs" />
     <Compile Include="Validation\AspNetXssModelValidator.cs" />
     <Compile Include="Validation\HtmlSanitizerModelValidator.cs" />
     <Compile Include="Validation\ValidateModelAttribute.cs" />
     <Compile Include="Validation\XssModelValidationProvider.cs" />
-    <Compile Include="Validation\XssModelValidationStrategy.cs" />
+    <Compile Include="XssStrategy.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="packages.config" />

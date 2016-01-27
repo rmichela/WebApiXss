@@ -8,15 +8,23 @@ namespace JsonXss.Validation
 {
     public class HtmlSanitizerModelValidator : ModelValidator
     {
-        public HtmlSanitizerModelValidator(IEnumerable<ModelValidatorProvider> validatorProviders) : base(validatorProviders)
+        private readonly AllowHtmlAttribute _attribute;
+
+        public HtmlSanitizerModelValidator(IEnumerable<ModelValidatorProvider> validatorProviders, AllowHtmlAttribute attribute) : base(validatorProviders)
         {
+            _attribute = attribute;
         }
 
         public override IEnumerable<ModelValidationResult> Validate(ModelMetadata metadata, object container)
         {
             if (metadata.Model is string)
             {
-                var sanitizer = new HtmlSanitizer();
+                var sanitizer = new HtmlSanitizer(
+                    allowedTags: _attribute != null ? _attribute.AllowedTags : new string[0],
+                    allowedSchemes: new string[0],
+                    allowedAttributes: new string[0],
+                    uriAttributes: new string[0],
+                    allowedCssProperties: new string[0]);
 
                 var dirty = (string) metadata.Model;
                 var sanitized = sanitizer.Sanitize(dirty, outputFormatter: OutputFormatters.HtmlEncodingNone);

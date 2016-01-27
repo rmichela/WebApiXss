@@ -4,7 +4,7 @@
     {
         public string NoMarkup { get; set; }
 
-        [AllowHtml]
+        [AllowHtml(AllowedTags = new[] { "h1" })]
         public string WithMarkup { get; set; }
     }
 

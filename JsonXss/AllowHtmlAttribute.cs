@@ -6,4 +6,5 @@
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public sealed class AllowHtmlAttribute : Attribute
 {
+    public string[] AllowedTags { get; set; }
 }
