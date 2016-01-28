@@ -21,6 +21,7 @@ namespace JsonXss
             }
             else
             {
+                // Filter out malicious strings
                 XssFilteringMediaTypeFormatter.Configure(config, strategy);
             }
 
